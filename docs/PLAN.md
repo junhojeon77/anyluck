@@ -36,10 +36,13 @@ Code.
 ```
 anyluck/
 ├── init                      # one-command setup + verify + resume gate
-├── anyluck.py                    # everything: scrape, dedupe, render, loop
-├── test_anyluck.py               # pure-logic tests
-├── test_scrape.py            # scraper tests against saved DOM fixtures
-├── tests/fixtures/           # real results HTML, captured in Phase 0
+├── anyluck                   # wrapper: ./anyluck instead of .venv/bin/python
+├── anyluck.py                # everything: scrape, dedupe, render, loop
+├── pytest.ini                # puts the project root on sys.path for tests/
+├── tests/
+│   ├── test_anyluck.py       # pure-logic tests
+│   ├── test_scrape.py        # scraper tests against saved DOM fixtures
+│   └── fixtures/             # real results HTML, captured in Phase 1
 ├── config.toml               # user-editable: search terms, boards, locations
 ├── resume.md                 # template, user replaces
 ├── jobs.md                   # OUTPUT — bot-owned, rewritten each cycle
@@ -59,7 +62,7 @@ anyluck/
     └── ATS_REFERENCE.md      # moved from root
 ```
 
-Two Python files. `anyluck.py` lands around 250 lines and doesn't need splitting —
+One module plus its tests. `anyluck.py` lands around 250 lines and doesn't need splitting —
 the four Workday banks share a single scraper, so there are two scrapers total,
 not five.
 
@@ -173,7 +176,7 @@ Board slugs come from `WORKDAY_REFERENCE.md` §9, which flags them as unverified
 ## Build order — test-driven throughout
 
 **Framework:** `pytest` (add `pytest` alongside `playwright`; nothing else). Test
-files `test_anyluck.py` and `test_scrape.py`.
+files `tests/test_anyluck.py` and `tests/test_scrape.py`.
 
 **The cycle, enforced per behaviour:**
 
@@ -226,7 +229,7 @@ Those fixtures are what makes Phase 3 testable — the scrapers get real DOM to
 work against with no network. Report what's live before proceeding, and correct
 the board table in `docs/` if any slug has moved.
 
-### Phase 2 — pure logic (`test_anyluck.py`)
+### Phase 2 — pure logic (`tests/test_anyluck.py`)
 
 One behaviour per cycle, in this order:
 
@@ -251,7 +254,7 @@ One behaviour per cycle, in this order:
 The `merge_seen` block is the heart of the bot and gets the most coverage; §8's
 whole design rests on it.
 
-### Phase 3 — scrapers, against saved fixtures (`test_scrape.py`)
+### Phase 3 — scrapers, against saved fixtures (`tests/test_scrape.py`)
 
 Not a hole any more. Each test spins a real Playwright page, loads the Phase 1
 fixture with `page.set_content(html)`, and asserts on parsed output —
