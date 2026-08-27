@@ -207,12 +207,24 @@ url  = "https://shopify.wd3.myworkdayjobs.com/en-US/External"
 
 3. Run `./anyluck --board shopify` and see if jobs come back.
 
-Not Workday? Check `docs/ATS_REFERENCE.md` — Greenhouse, Lever, and Ashby all
-have clean public JSON APIs that are far easier to read than any HTML, and §9
-there has the normalized shape any new adapter should return. Most Toronto tech
-companies are on one of those three rather than Workday.
+**Not Workday?** Most Toronto tech companies run Greenhouse, Lever, or Ashby
+instead. None of those has an adapter yet, but all three are public,
+unauthenticated JSON APIs that are far easier to read than scraped HTML — and
+unlike Workday they carry real publish timestamps. Identify which one a company
+uses by looking at where its "Apply" link points:
 
-`docs/WORKDAY_REFERENCE.md` §2 covers identifying an unknown site by hand.
+| URL pattern | Platform |
+|---|---|
+| `boards.greenhouse.io/{slug}` | Greenhouse |
+| `jobs.lever.co/{slug}` | Lever |
+| `jobs.ashbyhq.com/{slug}` | Ashby |
+| `{slug}.wd{N}.myworkdayjobs.com` | Workday — works today |
+
+Any new adapter just has to return the same record shape as the existing two;
+see `docs/PLAN.md`.
+
+To identify an unknown site by hand: open the careers page, F12 → Network tab,
+type into its search box, and find the request that returns the job list.
 
 ---
 

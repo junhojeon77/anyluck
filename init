@@ -154,8 +154,8 @@ ${GRN}${BLD}Setup complete.${OFF}
   which asks what jobs you want, writes config.toml, and does the first
   scrape. After that:
 
-      ${BLD}./anyluck --watch${OFF}     leave it running
-      ${BLD}/jobscan${OFF}                            when you want the analysis
+      ${BLD}./anyluck --watch${OFF}   leave it running
+      ${BLD}/jobscan${OFF}            when you want the analysis
 
   ${DIM}Docs: docs/ONBOARDING.md, docs/TROUBLESHOOTING.md${OFF}
 

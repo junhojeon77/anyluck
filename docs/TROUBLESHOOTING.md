@@ -21,13 +21,27 @@ Otherwise, in Claude Code:
 It opens the board in a visible browser, works out what changed — a renamed
 career-site slug, moved selectors, a redirect — and patches `config.toml`.
 
-If you'd rather do it by hand, `docs/WORKDAY_REFERENCE.md` §2 has the devtools
-procedure. It takes about fifteen seconds and is the only reliable method; there
-is no public directory mapping companies to Workday tenants.
+If you'd rather do it by hand, it takes about fifteen seconds:
 
-**Career site slugs get renamed.** `docs/WORKDAY_REFERENCE.md` §9 lists the Big
-Five, and explicitly flags that table as needing verification. A slug that
-worked last year may not work today.
+1. Open the careers page.
+2. F12 → Network tab → filter on `jobs`.
+3. Type anything into the site's own search box.
+4. Find the request that comes back with the job list; its URL carries the
+   tenant and career-site slug.
+
+This is the only reliable method — there is no public directory mapping
+companies to Workday tenants.
+
+**Career site slugs get renamed.** These were all verified live, but a slug that
+worked last year may not work today:
+
+| Bank | Career site slug |
+|---|---|
+| RBC | `rbcglobal1` |
+| TD | `TD_Bank_Careers` |
+| BMO | `External` |
+| CIBC | `search` |
+| Scotiabank | not Workday — `jobs.scotiabank.com` |
 
 ---
 
@@ -56,10 +70,10 @@ a captcha, that's the answer.
 1. **Solve it by hand once.** The browser profile in `.pw-profile/` persists, so
    the clearance cookie carries to later cycles. This works more often than it
    should.
-2. **Slow down.** `docs/WORKDAY_REFERENCE.md` §7 notes that Workday's rate limit
-   appears to be **per source IP across all tenants combined** — a block from
-   CIBC is a signal about your total volume across RBC, TD, BMO and CIBC
-   together. Cut `search_terms` or raise `hours_between_runs`.
+2. **Slow down.** Workday's rate limit appears to be **per source IP across all
+   tenants combined**, not per bank — so a block from CIBC is a signal about
+   your total volume across RBC, TD, BMO and CIBC together. Cut `search_terms`
+   or raise `hours_between_runs`.
 3. **Wait it out.** These clear on their own, usually within the hour.
 
 A headed real browser is much harder to block than a scripted HTTP client, which
