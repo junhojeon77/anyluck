@@ -11,7 +11,7 @@ stage(){ printf "\n${BLD}%s${OFF}\n" "$1"; }
 die(){ printf "\n  ${RED}stopped${OFF}  %s\n\n" "$1" >&2; exit 1; }
 
 cd "$(dirname "$0")"
-printf "\n${BLD}WorkdayBot setup${OFF}\n${DIM}%s${OFF}\n" "$(pwd)"
+printf "\n${BLD}anyluck setup${OFF}\n${DIM}%s${OFF}\n" "$(pwd)"
 
 # ---------------------------------------------------------------- 1. python
 stage "1/5  Python"
@@ -154,7 +154,7 @@ ${GRN}${BLD}Setup complete.${OFF}
   which asks what jobs you want, writes config.toml, and does the first
   scrape. After that:
 
-      ${BLD}.venv/bin/python bot.py --watch${OFF}     leave it running
+      ${BLD}./anyluck --watch${OFF}     leave it running
       ${BLD}/jobscan${OFF}                            when you want the analysis
 
   ${DIM}Docs: docs/ONBOARDING.md, docs/TROUBLESHOOTING.md${OFF}

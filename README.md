@@ -1,23 +1,27 @@
-# WorkdayBot
+# anyluck
 
-Watches the careers boards of Canada's Big Five banks for jobs matching your
-search terms, in a visible browser, every 4 hours. Writes what it finds to
-`jobs.md` grouped by bank and ordered by how recently each posting appeared.
+> *"Any luck with the job search?"*
+
+Now you can answer that. It watches the careers boards of Canada's Big Five banks
+for jobs matching your search terms, in a visible browser, every 4 hours, and
+writes them to `jobs.md`, grouped by bank and ordered by how recently each one
+appeared.
 
 Then Claude Code reads that feed, pulls out keywords, and tells you which ones
 actually fit your resume.
 
 ```
-$ .venv/bin/python bot.py --watch
-[14:00] RBC 12  TD 8  BMO 4  CIBC 9  Scotiabank 6
-[14:00] 3 new -> jobs.md
-[14:00] sleeping 4h
+$ ./anyluck
+3 new since this morning:
+  CIBC  Software Engineer II - Android   just now
+  RBC   Backend Developer, Payments      2h ago
+  TD    Software Engineer II (SDET)       3h ago
 ```
 
 ## Quickstart
 
 ```bash
-cd WorkdayBot
+cd anyluck
 ./init
 ```
 
@@ -37,7 +41,7 @@ which asks for your search terms and locations, writes `config.toml`, and does
 the first scrape. After that:
 
 ```bash
-.venv/bin/python bot.py --watch     # leave it running
+./anyluck --watch     # leave it running
 ```
 
 and whenever you want the analysis:

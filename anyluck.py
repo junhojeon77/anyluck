@@ -1,4 +1,4 @@
-"""WorkdayBot - watches bank career boards in a visible browser."""
+"""anyluck - answers "any luck with the job search?"."""
 
 NEW_MARKER = "\U0001F195"
 

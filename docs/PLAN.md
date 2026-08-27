@@ -1,4 +1,4 @@
-# WorkdayBot — implementation plan
+# anyluck — implementation plan
 
 ## Context
 
@@ -34,10 +34,10 @@ Code.
 ## Files
 
 ```
-WorkdayBot/
+anyluck/
 ├── init                      # one-command setup + verify + resume gate
-├── bot.py                    # everything: scrape, dedupe, render, loop
-├── test_bot.py               # pure-logic tests
+├── anyluck.py                    # everything: scrape, dedupe, render, loop
+├── test_anyluck.py               # pure-logic tests
 ├── test_scrape.py            # scraper tests against saved DOM fixtures
 ├── tests/fixtures/           # real results HTML, captured in Phase 0
 ├── config.toml               # user-editable: search terms, boards, locations
@@ -59,7 +59,7 @@ WorkdayBot/
     └── ATS_REFERENCE.md      # moved from root
 ```
 
-Two Python files. `bot.py` lands around 250 lines and doesn't need splitting —
+Two Python files. `anyluck.py` lands around 250 lines and doesn't need splitting —
 the four Workday banks share a single scraper, so there are two scrapers total,
 not five.
 
@@ -130,11 +130,11 @@ one site changed.
 ### CLI
 
 ```
-python bot.py               # one cycle
-python bot.py --watch       # cycle, sleep 4h, repeat (interval from config)
-python bot.py --board cibc  # one board, for debugging
-python bot.py --render      # regenerate jobs.md from seen.json, no browser
-python bot.py --capture cibc # re-save tests/fixtures/cibc_results.html
+./anyluck               # one cycle
+./anyluck --watch       # cycle, sleep 4h, repeat (interval from config)
+./anyluck --board cibc  # one board, for debugging
+./anyluck --render      # regenerate jobs.md from seen.json, no browser
+./anyluck --capture cibc # re-save tests/fixtures/cibc_results.html
 ```
 
 ### config.toml
@@ -173,7 +173,7 @@ Board slugs come from `WORKDAY_REFERENCE.md` §9, which flags them as unverified
 ## Build order — test-driven throughout
 
 **Framework:** `pytest` (add `pytest` alongside `playwright`; nothing else). Test
-files `test_bot.py` and `test_scrape.py`.
+files `test_anyluck.py` and `test_scrape.py`.
 
 **The cycle, enforced per behaviour:**
 
@@ -226,7 +226,7 @@ Those fixtures are what makes Phase 3 testable — the scrapers get real DOM to
 work against with no network. Report what's live before proceeding, and correct
 the board table in `docs/` if any slug has moved.
 
-### Phase 2 — pure logic (`test_bot.py`)
+### Phase 2 — pure logic (`test_anyluck.py`)
 
 One behaviour per cycle, in this order:
 
@@ -300,14 +300,14 @@ worse than no docs.
 Automated first, then the live residue the fixtures can't reach.
 
 1. `pytest -v` — every phase green, with counts shown.
-2. `python bot.py --board cibc` — a real headed browser drives one board.
+2. `./anyluck --board cibc` — a real headed browser drives one board.
    `seen.json` gains records with `first_seen` set; **nothing** flagged NEW.
 3. Same command again — still nothing NEW. Dedupe against a *live* board is the
    likeliest bug and the fixtures can't prove it.
-4. `python bot.py` — full cycle, five boards. `jobs.md` grouped by bank, ages
+4. `./anyluck` — full cycle, five boards. `jobs.md` grouped by bank, ages
    plausible, links resolve, multi-location jobs present.
-5. `python bot.py --render` — byte-identical `jobs.md`, no browser.
-6. `python bot.py --watch` — sleeps and re-runs; kill after cycle two starts.
+5. `./anyluck --render` — byte-identical `jobs.md`, no browser.
+6. `./anyluck --watch` — sleeps and re-runs; kill after cycle two starts.
 7. `/jobscan` — `matches.md` appears with keywords and resume gaps; `jobs.md`
    byte-identical afterward (ownership boundary holds).
 8. `/discover` against a deliberately broken URL in `config.toml` — recovers it.

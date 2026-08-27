@@ -12,8 +12,8 @@ Requires **Python 3.11+** (the config loader uses stdlib `tomllib`) and Claude
 Code. Everything else the script handles.
 
 ```bash
-git clone <your-fork> WorkdayBot
-cd WorkdayBot
+git clone <your-fork> anyluck
+cd anyluck
 ./init
 ```
 
@@ -120,7 +120,7 @@ worse failure than showing a few irrelevant ones.
 ## 4. Seed run
 
 ```bash
-.venv/bin/python bot.py
+./anyluck
 ```
 
 A browser window opens and works through each board. Let it finish — closing the
@@ -139,7 +139,7 @@ board? See [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 ## 5. Leave it running
 
 ```bash
-.venv/bin/python bot.py --watch
+./anyluck --watch
 ```
 
 Scrapes, sleeps 4 hours, repeats. Ctrl-C to stop.
@@ -205,7 +205,7 @@ type = "workday"
 url  = "https://shopify.wd3.myworkdayjobs.com/en-US/External"
 ```
 
-3. Run `.venv/bin/python bot.py --board shopify` and see if jobs come back.
+3. Run `./anyluck --board shopify` and see if jobs come back.
 
 Not Workday? Check `docs/ATS_REFERENCE.md` — Greenhouse, Lever, and Ashby all
 have clean public JSON APIs that are far easier to read than any HTML, and §9
@@ -227,7 +227,7 @@ while the real scraper fails. That's the known limitation of fixture-based
 scraper tests. When a board goes quiet, recapture:
 
 ```bash
-.venv/bin/python bot.py --capture cibc     # re-saves tests/fixtures/cibc_results.html
+./anyluck --capture cibc     # re-saves tests/fixtures/cibc_results.html
 ```
 
 then re-run `pytest` and fix what actually broke.

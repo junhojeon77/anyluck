@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Thin wrapper so you can type ./anyluck instead of .venv/bin/python anyluck.py
+cd "$(dirname "$0")"
+[ -x .venv/bin/python ] || { echo "No .venv yet - run ./init first." >&2; exit 1; }
+exec .venv/bin/python anyluck.py "$@"
