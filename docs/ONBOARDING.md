@@ -23,10 +23,10 @@ message saying what to do about it:
 | Stage | What it does |
 |---|---|
 | 1 Python | Finds a 3.11+ interpreter, or tells you none is installed |
-| 2 Dependencies | Creates `.venv`, installs `playwright` and `pytest` |
+| 2 Dependencies | Creates `.venv`, installs `playwright`, `pytest` and `pypdf` |
 | 3 Browser | Downloads Chromium (~150MB, once) |
 | 4 Verify | **Actually launches Chromium**, checks for a desktop session, runs the test suite |
-| 5 Resume | Writes a `resume.md` template and waits while you fill it in |
+| 5 Resume | Finds your resume file, converts it to `resume.md`, shows you the result |
 
 Stage 4 is the one worth having. It doesn't assume the install worked — it opens
 a real browser. The usual Linux failure is Chromium installing fine and then
@@ -50,25 +50,45 @@ The script tells you what to do. The two common ones:
 
 ## 2. Your resume
 
-Stage 5 writes a `resume.md` template and waits. Open it, replace it with yours
-in Markdown, save, then press **1** and Enter.
+Drop your resume into the project folder — **whatever format you already have
+it in**. Stage 5 looks for any file with `resume` in the name and converts it:
 
-No particular structure is needed — `/jobscan` reads it as prose:
+| Format | Notes |
+|---|---|
+| `.pdf` | Uses `pdftotext` when available, `pypdf` otherwise |
+| `.docx` | Modern Word |
+| `.odt` | LibreOffice / OpenOffice |
+| `.md`, `.txt` | Read as-is |
+| `.doc` | **Not supported** — the old binary Word format. Open it and re-save as `.docx` or PDF. |
 
-```markdown
-# Your Name
+The name just has to contain "resume" somewhere, in any casing —
+`Resume.pdf`, `RESUME.PDF`, `Jane-Doe-Resume-2026.docx` all work. If several
+match, the most recently modified wins and stage 5 prints which one it took.
 
-## Skills
-Python, TypeScript, PostgreSQL, Docker, ...
+Then press **1** and Enter. You get a preview:
 
-## Experience
-### Backend Developer, Somewhere (2023-now)
-- Built and maintained a payments integration handling ...
+```
+  ok  imported Jane-Doe-Resume.pdf - 3,412 characters -> resume.md
+        Jane Doe
+        416-555-0134 | jane@example.com | Toronto, ON
+        Education
 ```
 
-Specificity is what makes the matching useful. "Familiar with AWS" produces
-vague results; "built CI pipelines in GitHub Actions, deployed to ECS" produces
-specific ones.
+**Read that preview.** It is the one moment where a bad parse is obvious. If the
+lines look shuffled or full of fragments, the conversion mangled your layout and
+`/jobscan` will match against nonsense — re-export the PDF or supply a `.docx`.
+
+Two things stage 5 will refuse to do:
+
+- **Overwrite a `resume.md` you wrote yourself.** It only replaces files it
+  created, so hand-written notes are safe.
+- **Accept a scanned PDF.** A scan is an image with no text in it. Rather than
+  writing an empty `resume.md` and leaving `/jobscan` silently matching against
+  nothing, it tells you the file has no text layer. There is no OCR.
+
+Your resume never leaves your machine. `.gitignore` excludes anything with
+"resume" in the name — the original *and* the converted `resume.md` — so
+neither is ever committed or pushed.
 
 Don't want resume matching? Press **s** to skip. Everything else works without
 it; only `/jobscan` needs it.
@@ -179,7 +199,7 @@ The one rule worth internalising:
 | `matches.md` | `/jobscan` | Claude's analysis. The bot never touches it. |
 | `seen.json` | the bot | State. Don't edit. Deleting it re-seeds. |
 | `config.toml` | you | Yours. `/jobsetup` and `/discover` also write here. |
-| `resume.md` | you | Yours. Read-only to everything else. |
+| `resume.md` | `./init` | Converted from your resume file. Hand-write it instead and init leaves it alone. |
 
 Two output files instead of one because the bot overwrites `jobs.md` on a
 schedule. Putting Claude's analysis in there too would mean it disappeared every

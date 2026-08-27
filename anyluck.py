@@ -2,8 +2,12 @@
 import json
 import os
 import re
+import shutil
+import subprocess
 import tomllib
 import urllib.parse
+import xml.etree.ElementTree as ET
+import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -195,3 +199,124 @@ def filter_locations(jobs, locations):
         if _MULTI_LOCATION.match(where) or any(item in where for item in wanted):
             kept.append(job)
     return kept
+
+
+# --- resume import ----------------------------------------------------------
+
+RESUME_OUTPUT = "resume.md"
+_PROVENANCE = "<!-- imported by anyluck from"
+
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_ODT_TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
+
+
+def find_resume(directory):
+    """Newest file with "resume" in its name, or None.
+
+    Our own resume.md output matches that description too, so it is excluded -
+    otherwise every run would re-import the previous run's output.
+    """
+    candidates = [
+        item
+        for item in Path(directory).iterdir()
+        if item.is_file()
+        and "resume" in item.name.lower()
+        and item.name.lower() != RESUME_OUTPUT
+    ]
+    if not candidates:
+        return None
+    # A real folder holds Resume_2024.pdf next to Resume_2026.pdf. Newest is the
+    # right guess, as long as the caller says out loud which one it picked.
+    return max(candidates, key=lambda item: item.stat().st_mtime)
+
+
+def _zip_paragraphs(path, member, para_tag, text_tag=None):
+    """Pull paragraph text out of an Office/ODF file - both are ZIPs of XML."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml = archive.read(member)
+    except (zipfile.BadZipFile, KeyError) as exc:
+        raise ValueError(f"{path.name} is not a readable {path.suffix} file ({exc}).") from exc
+
+    lines = []
+    for para in ET.fromstring(xml).iter(para_tag):
+        # Word splits one sentence across many runs. Joining with no separator
+        # is what keeps "Back" + "end Dev" + "eloper" a single word pair.
+        chunks = (
+            [node.text or "" for node in para.iter(text_tag)]
+            if text_tag
+            else list(para.itertext())
+        )
+        lines.append("".join(chunks))
+    return "\n".join(lines)
+
+
+def _pdf_text(path):
+    """pdftotext when available, else pypdf.
+
+    Resumes are often two-column, and pypdf interleaves columns into unusable
+    prose where pdftotext -layout keeps them apart. Since this text is what
+    /jobscan matches against, the better extractor is worth preferring.
+    """
+    if shutil.which("pdftotext"):
+        try:
+            done = subprocess.run(
+                ["pdftotext", "-layout", str(path), "-"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if done.returncode == 0 and done.stdout.strip():
+                return done.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass  # fall through to pypdf
+
+    from pypdf import PdfReader  # imported late so the scraper path needn't have it
+
+    return "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+
+
+def extract_text(path):
+    """Read a resume in whatever format it arrived in. Never returns empty."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+
+    if suffix in (".txt", ".md"):
+        text = path.read_text(errors="replace")
+    elif suffix == ".docx":
+        text = _zip_paragraphs(path, "word/document.xml", f"{_W}p", f"{_W}t")
+    elif suffix == ".odt":
+        text = _zip_paragraphs(path, "content.xml", f"{_ODT_TEXT}p")
+    elif suffix == ".pdf":
+        text = _pdf_text(path)
+    elif suffix == ".doc":
+        raise ValueError(
+            f"{path.name} is the legacy binary .doc format, which needs Word or "
+            f"LibreOffice to read. Open it and save as .docx or PDF, then re-run."
+        )
+    else:
+        raise ValueError(
+            f"{path.name}: no reader for {suffix or 'a file with no extension'}. "
+            f"Supported formats are .pdf, .docx, .odt, .md and .txt."
+        )
+
+    if not text.strip():
+        # An empty resume.md would leave /jobscan matching against nothing while
+        # looking like it worked, so this is an error rather than an empty file.
+        raise ValueError(
+            f"{path.name} contains no text. For a PDF this usually means it is a "
+            f"scan - an image of a page - which anyluck cannot read. Export a "
+            f"text-based PDF, or save your resume as .docx or .txt."
+        )
+    return text.strip()
+
+
+def import_resume(source, dest, now):
+    """Convert source into dest as Markdown. Returns the extracted text."""
+    source, dest = Path(source), Path(dest)
+    if dest.exists() and _PROVENANCE not in dest.read_text(errors="replace"):
+        raise FileExistsError(
+            f"{dest} was not written by anyluck, so it will not be overwritten. "
+            f"Move it aside if you want to import {source.name} instead."
+        )
+    text = extract_text(source)
+    save_atomic(dest, f"{_PROVENANCE} {source.name} on {now:%Y-%m-%d} -->\n\n{text}\n")
+    return text

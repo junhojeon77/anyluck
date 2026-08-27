@@ -80,7 +80,7 @@ Nothing has to merge.
 
 | Command | What it does |
 |---|---|
-| `/jobsetup` | First-run config. Search terms, locations, resume, seed run. |
+| `/jobsetup` | First-run config. Search terms, locations, seed run. (`./init` handles the resume.) |
 | `/jobscan` | Reads `jobs.md` + `resume.md`, writes `matches.md`. |
 | `/discover` | A board went quiet? This finds its new URL/selectors and patches `config.toml`. |
 

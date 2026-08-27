@@ -197,8 +197,8 @@ above. They do get renamed over time; `/discover` is the recovery path.
   careers page headed, finds the current selectors or corrected URL, patches
   `config.toml`. Automates the devtools procedure: open the page, Network tab,
   search, find the request that returns the jobs, read the slug off it.
-- **`/jobsetup`** — first-run onboarding. Asks for search terms, locations, and
-  resume, then writes `config.toml` and runs a seed cycle.
+- **`/jobsetup`** — first-run onboarding. Asks for search terms and locations,
+  then writes `config.toml` and runs a seed cycle. The resume is `./init`'s job.
 
 ---
 

@@ -32,13 +32,13 @@ if [ ! -x .venv/bin/python ]; then
           On Debian/Ubuntu: sudo apt install python3-venv"
 fi
 VPY=.venv/bin/python
-if $VPY -c 'import playwright, pytest' 2>/dev/null; then
-  ok "playwright and pytest already installed"
+if $VPY -c 'import playwright, pytest, pypdf' 2>/dev/null; then
+  ok "playwright, pytest and pypdf already installed"
 else
-  info "installing playwright + pytest (a minute or so)"
+  info "installing playwright, pytest and pypdf (a minute or so)"
   $VPY -m pip install --quiet --upgrade pip >/dev/null 2>&1
-  $VPY -m pip install --quiet playwright pytest || die "pip install failed. Scroll up for why."
-  ok "playwright and pytest installed"
+  $VPY -m pip install --quiet playwright pytest pypdf || die "pip install failed. Scroll up for why."
+  ok "playwright, pytest and pypdf installed"
 fi
 
 # --------------------------------------------------------------- 3. browser
@@ -93,54 +93,78 @@ fi
 # ---------------------------------------------------------------- 5. resume
 stage "5/5  Your resume"
 
-SENTINEL="REPLACE-EVERYTHING-BELOW-WITH-YOUR-OWN-RESUME"
-if [ ! -f resume.md ]; then
-  cat > resume.md <<'RESEOF'
-<!-- REPLACE-EVERYTHING-BELOW-WITH-YOUR-OWN-RESUME -->
-# Your Name
+# Prints a status word on line 1, details after. Always exits 0 - the shell
+# decides what to do, the Python only reports.
+resume_status(){
+  $VPY - <<'PYRESUME'
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+import anyluck
 
-## Skills
-Python, TypeScript, PostgreSQL, Docker
+dest = Path("resume.md")
+src = anyluck.find_resume(".")
 
-## Experience
+if src is None:
+    print("KEPT" if dest.exists() else "NONE")
+    sys.exit(0)
 
-### Backend Developer, Some Company (2023-now)
-- Built a payments integration against a third-party API, handling retries,
-  idempotency and webhook delivery.
-- Wrote the CI pipeline in GitHub Actions; deployed to ECS.
+try:
+    text = anyluck.import_resume(src, dest, datetime.now(timezone.utc))
+except FileExistsError:
+    print("KEPT")
+    sys.exit(0)
+except ValueError as exc:
+    print("ERROR")
+    print(exc)
+    sys.exit(0)
 
-## Education
-B.Sc. Computer Science, Some University
-RESEOF
-  info "wrote a template to resume.md"
-fi
+print("IMPORTED")
+print(src.name)
+print(f"{len(text):,}")
+for line in [line for line in text.splitlines() if line.strip()][:3]:
+    print(line.strip()[:72])
+PYRESUME
+}
 
-still_template(){ grep -q "$SENTINEL" resume.md 2>/dev/null; }
+while true; do
+  out=$(resume_status)
+  status=$(printf '%s\n' "$out" | sed -n 1p)
+  rest=$(printf '%s\n' "$out" | sed -n '2,$p')
 
-if still_template; then
-  printf "\n"
-  info "Open ${BLD}resume.md${OFF}${DIM} and replace it with your own resume, in Markdown."
-  info "/jobscan reads it to work out which postings actually fit you."
-  info "Be specific - \"built CI pipelines in GitHub Actions\" matches far better"
-  info "than \"familiar with DevOps\"."
-  printf "\n"
-  while true; do
-    printf "  ${BLD}1${OFF} + Enter when your resume is in, or ${BLD}s${OFF} to skip: "
-    read -r ans </dev/tty || { printf "\n"; warn "no terminal; skipping"; break; }
-    case "$ans" in
-      1) if still_template; then
-           warn "resume.md still looks like the template."
-           info "Edit it and save, then press 1 again. Or press s to skip."
-         else
-           ok "resume.md updated"; break
-         fi ;;
-      s|S) warn "skipped - everything works without it, but /jobscan will have nothing to match against"; break ;;
-      *) info "press 1 or s" ;;
-    esac
-  done
-else
-  ok "resume.md is yours already"
-fi
+  case "$status" in
+    IMPORTED)
+      ok "imported ${BLD}$(printf '%s\n' "$rest" | sed -n 1p)${OFF} - $(printf '%s\n' "$rest" | sed -n 2p) characters -> resume.md"
+      printf '%s\n' "$rest" | sed -n '3,$p' | while IFS= read -r line; do
+        printf "        ${DIM}%s${OFF}\n" "$line"
+      done
+      info "if that looks wrong, the parse went wrong - /jobscan matches on it"
+      break ;;
+
+    KEPT)
+      ok "resume.md already in place, leaving it alone"
+      break ;;
+
+    ERROR)
+      warn "could not read your resume:"
+      printf '%s\n' "$rest" | fold -s -w 66 | sed 's/^/      /'
+      ;;
+
+    NONE)
+      info "No file matching ${BLD}*resume*${OFF}${DIM} here yet."
+      info "Drop yours into this folder - PDF, Word (.docx), .odt, .md or .txt."
+      info "It stays on your machine; .gitignore keeps it out of the repo."
+      ;;
+  esac
+
+  printf "\n  ${BLD}1${OFF} + Enter once it is in place, or ${BLD}s${OFF} to skip: "
+  read -r ans </dev/tty || { printf "\n"; warn "no terminal; skipping"; break; }
+  case "$ans" in
+    1) ;;
+    s|S) warn "skipped - everything works without a resume, but /jobscan will have nothing to match against"; break ;;
+    *) info "press 1 or s" ;;
+  esac
+done
 
 # ------------------------------------------------------------------- finish
 cat <<EOF
