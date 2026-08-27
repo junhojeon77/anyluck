@@ -5,5 +5,16 @@ __pycache__/
 seen.json
 jobs.md
 matches.md
-resume.md
 config.toml
+
+# Your resume, in any form. Personal data, and this repo gets pushed.
+# The character classes make it case-insensitive without relying on a
+# case-insensitive filesystem: Resume.pdf, RESUME.PDF, my_resume_2026.docx,
+# jane-doe-resume.txt and resume.md all match.
+*[Rr][Ee][Ss][Uu][Mm][Ee]*
+
+# ...except the test suite and its fixtures, which contain no real data and
+# must stay in the repo.
+!tests/test_resume.py
+!tests/fixtures/resume_sample.pdf
+!tests/fixtures/resume_scanned.pdf
