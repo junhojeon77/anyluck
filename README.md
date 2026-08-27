@@ -101,30 +101,17 @@ be several hundred jobs.
 
 ## A note on the browser
 
-This drives a real, visible Chromium at every board. That is not the fastest way
-to do this — Workday exposes a clean JSON API underneath, documented in
-[`docs/WORKDAY_REFERENCE.md`](docs/WORKDAY_REFERENCE.md), and hitting it
-directly would be seconds instead of minutes and 30MB instead of 400MB.
+This drives a real, visible Chromium at every board. 
 
-The browser was chosen deliberately anyway. It's uniform across all five banks
+The browser was chosen deliberately. It's uniform across all five banks
 including Scotiabank, which isn't Workday at all; you can watch it work and see
 exactly where it breaks; and against Cloudflare a real browser is genuinely
 better than a scripted HTTP client. The cost is that it breaks when a site is
 restyled. That's mitigated by anchoring on Workday's `data-automation-id`
 attributes rather than CSS classes, and by `/discover` when it happens anyway.
 
-If you'd rather have the API version, `docs/WORKDAY_REFERENCE.md` §3 has
-everything needed to write it.
-
 ## Docs
 
 - [`docs/ONBOARDING.md`](docs/ONBOARDING.md) — full setup, and how to point this at boards that aren't banks
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — when a board goes quiet
 - [`docs/PLAN.md`](docs/PLAN.md) — the design and why
-- [`docs/WORKDAY_REFERENCE.md`](docs/WORKDAY_REFERENCE.md) — how Workday's API works
-- [`docs/ATS_REFERENCE.md`](docs/ATS_REFERENCE.md) — Greenhouse, Lever, Ashby, for when you outgrow banks
-
-## Not included
-
-Email or desktop notifications, a database, a web UI, salary parsing (Workday
-has no salary data to parse). `jobs.md` in a terminal is the interface.
