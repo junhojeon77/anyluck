@@ -1,0 +1,9 @@
+.venv/
+.pw-profile/
+__pycache__/
+.pytest_cache/
+seen.json
+jobs.md
+matches.md
+resume.md
+config.toml

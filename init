@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# One-shot setup. Installs, verifies, then walks you to the first run.
+# Safe to re-run: it skips whatever is already done.
+set -uo pipefail
+
+RED=$'\e[31m'; GRN=$'\e[32m'; YEL=$'\e[33m'; DIM=$'\e[2m'; BLD=$'\e[1m'; OFF=$'\e[0m'
+ok(){ printf "  ${GRN}ok${OFF}  %s\n" "$1"; }
+info(){ printf "  ${DIM}%s${OFF}\n" "$1"; }
+warn(){ printf "  ${YEL}warn${OFF}  %s\n" "$1"; }
+stage(){ printf "\n${BLD}%s${OFF}\n" "$1"; }
+die(){ printf "\n  ${RED}stopped${OFF}  %s\n\n" "$1" >&2; exit 1; }
+
+cd "$(dirname "$0")"
+printf "\n${BLD}WorkdayBot setup${OFF}\n${DIM}%s${OFF}\n" "$(pwd)"
+
+# ---------------------------------------------------------------- 1. python
+stage "1/5  Python"
+PY=""
+for c in python3.14 python3.13 python3.12 python3.11 python3 python; do
+  command -v "$c" >/dev/null 2>&1 || continue
+  "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)' 2>/dev/null && { PY="$c"; break; }
+done
+[ -n "$PY" ] || die "Need Python 3.11 or newer (the config loader uses stdlib tomllib).
+          Found: $(python3 -V 2>&1 || echo none)"
+ok "$($PY -V), tomllib available"
+
+# ------------------------------------------------------------------ 2. venv
+stage "2/5  Dependencies"
+if [ ! -x .venv/bin/python ]; then
+  info "creating .venv"
+  "$PY" -m venv .venv || die "Could not create a virtualenv.
+          On Debian/Ubuntu: sudo apt install python3-venv"
+fi
+VPY=.venv/bin/python
+if $VPY -c 'import playwright, pytest' 2>/dev/null; then
+  ok "playwright and pytest already installed"
+else
+  info "installing playwright + pytest (a minute or so)"
+  $VPY -m pip install --quiet --upgrade pip >/dev/null 2>&1
+  $VPY -m pip install --quiet playwright pytest || die "pip install failed. Scroll up for why."
+  ok "playwright and pytest installed"
+fi
+
+# --------------------------------------------------------------- 3. browser
+stage "3/5  Browser"
+if $VPY -m playwright install --dry-run chromium 2>/dev/null | grep -qi 'install location.*ms-playwright' \
+   && [ -d "${HOME}/.cache/ms-playwright" ] \
+   && compgen -G "${HOME}/.cache/ms-playwright/chromium*" >/dev/null; then
+  ok "chromium already downloaded"
+else
+  info "downloading chromium (~150MB, once)"
+  $VPY -m playwright install chromium || die "Chromium download failed. Check your connection and re-run ./init"
+  ok "chromium downloaded"
+fi
+
+# ---------------------------------------------------------------- 4. verify
+stage "4/5  Checking it actually works"
+
+if $VPY - <<'PYCHECK' 2>/tmp/wdb_launch.err
+from playwright.sync_api import sync_playwright
+with sync_playwright() as pw:
+    b = pw.chromium.launch(headless=True)
+    b.new_page().set_content("<h1>ok</h1>")
+    b.close()
+PYCHECK
+then
+  ok "chromium launches"
+else
+  printf "\n"; sed 's/^/      /' /tmp/wdb_launch.err | tail -12
+  die "Chromium is installed but will not start - usually missing system libraries.
+          Try:  sudo \$(pwd)/.venv/bin/playwright install-deps chromium
+          or on Arch/Manjaro:  sudo pacman -S nss atk at-spi2-atk libcups libdrm libxkbcommon"
+fi
+
+if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+  ok "graphical session found (the bot runs the browser visibly)"
+else
+  warn "no \$DISPLAY or \$WAYLAND_DISPLAY."
+  info "The bot shows the browser on purpose, which needs a desktop session."
+  info "Over SSH try 'ssh -X', or see docs/TROUBLESHOOTING.md."
+fi
+
+TESTOUT=$($VPY -m pytest -q 2>&1)
+if printf '%s' "$TESTOUT" | tail -3 | grep -qE '[0-9]+ (passed|warning)' && ! printf '%s' "$TESTOUT" | grep -qE '[0-9]+ (failed|error)'; then
+  ok "test suite green - $(printf '%s' "$TESTOUT" | tail -1 | tr -s ' ')"
+else
+  printf "\n"; printf '%s\n' "$TESTOUT" | tail -15 | sed 's/^/      /'
+  die "The test suite is not green, so setup stopped here.
+          Nothing above touched the network, so this is a code or install
+          problem rather than anything to do with your config."
+fi
+
+# ---------------------------------------------------------------- 5. resume
+stage "5/5  Your resume"
+
+SENTINEL="REPLACE-EVERYTHING-BELOW-WITH-YOUR-OWN-RESUME"
+if [ ! -f resume.md ]; then
+  cat > resume.md <<'RESEOF'
+<!-- REPLACE-EVERYTHING-BELOW-WITH-YOUR-OWN-RESUME -->
+# Your Name
+
+## Skills
+Python, TypeScript, PostgreSQL, Docker
+
+## Experience
+
+### Backend Developer, Some Company (2023-now)
+- Built a payments integration against a third-party API, handling retries,
+  idempotency and webhook delivery.
+- Wrote the CI pipeline in GitHub Actions; deployed to ECS.
+
+## Education
+B.Sc. Computer Science, Some University
+RESEOF
+  info "wrote a template to resume.md"
+fi
+
+still_template(){ grep -q "$SENTINEL" resume.md 2>/dev/null; }
+
+if still_template; then
+  printf "\n"
+  info "Open ${BLD}resume.md${OFF}${DIM} and replace it with your own resume, in Markdown."
+  info "/jobscan reads it to work out which postings actually fit you."
+  info "Be specific - \"built CI pipelines in GitHub Actions\" matches far better"
+  info "than \"familiar with DevOps\"."
+  printf "\n"
+  while true; do
+    printf "  ${BLD}1${OFF} + Enter when your resume is in, or ${BLD}s${OFF} to skip: "
+    read -r ans </dev/tty || { printf "\n"; warn "no terminal; skipping"; break; }
+    case "$ans" in
+      1) if still_template; then
+           warn "resume.md still looks like the template."
+           info "Edit it and save, then press 1 again. Or press s to skip."
+         else
+           ok "resume.md updated"; break
+         fi ;;
+      s|S) warn "skipped - everything works without it, but /jobscan will have nothing to match against"; break ;;
+      *) info "press 1 or s" ;;
+    esac
+  done
+else
+  ok "resume.md is yours already"
+fi
+
+# ------------------------------------------------------------------- finish
+cat <<EOF
+
+${GRN}${BLD}Setup complete.${OFF}
+
+  ${BLD}Next:${OFF} open Claude Code in this folder and run
+
+      ${BLD}/jobsetup${OFF}
+
+  which asks what jobs you want, writes config.toml, and does the first
+  scrape. After that:
+
+      ${BLD}.venv/bin/python bot.py --watch${OFF}     leave it running
+      ${BLD}/jobscan${OFF}                            when you want the analysis
+
+  ${DIM}Docs: docs/ONBOARDING.md, docs/TROUBLESHOOTING.md${OFF}
+
+EOF

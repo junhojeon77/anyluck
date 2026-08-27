@@ -1,0 +1,126 @@
+# WorkdayBot
+
+Watches the careers boards of Canada's Big Five banks for jobs matching your
+search terms, in a visible browser, every 4 hours. Writes what it finds to
+`jobs.md` grouped by bank and ordered by how recently each posting appeared.
+
+Then Claude Code reads that feed, pulls out keywords, and tells you which ones
+actually fit your resume.
+
+```
+$ .venv/bin/python bot.py --watch
+[14:00] RBC 12  TD 8  BMO 4  CIBC 9  Scotiabank 6
+[14:00] 3 new -> jobs.md
+[14:00] sleeping 4h
+```
+
+## Quickstart
+
+```bash
+cd WorkdayBot
+./init
+```
+
+That's the whole install. `./init` finds a Python 3.11+, builds a venv, installs
+Playwright and pytest, downloads Chromium, **launches it to confirm it actually
+works**, runs the test suite, then walks you through dropping in your resume.
+It stops at the first thing that fails and tells you how to fix it. Re-running
+it is safe.
+
+Then, in Claude Code:
+
+```
+/jobsetup
+```
+
+which asks for your search terms and locations, writes `config.toml`, and does
+the first scrape. After that:
+
+```bash
+.venv/bin/python bot.py --watch     # leave it running
+```
+
+and whenever you want the analysis:
+
+```
+/jobscan
+```
+
+## What comes out
+
+`jobs.md`, rewritten every cycle:
+
+```markdown
+## CIBC
+
+- **Senior Backend Engineer** — Toronto, ON · Hybrid  🆕
+  first seen just now · site says "Posted Today"
+  https://cibc.wd3.myworkdayjobs.com/en-US/search/job/...
+
+- **Software Engineer, Payments** — 2 Locations · Full time
+  first seen 8h ago · site says "Posted 5 Days Ago"
+  https://cibc.wd3.myworkdayjobs.com/en-US/search/job/...
+
+## RBC
+...
+```
+
+`matches.md`, written by `/jobscan`: per-job keywords, whether it fits your
+resume, and the specific gaps if it doesn't.
+
+**These two files have different owners.** `jobs.md` is the bot's — it gets
+overwritten every cycle, so don't hand-edit it. `matches.md` is Claude's.
+Nothing has to merge.
+
+## The three commands
+
+| Command | What it does |
+|---|---|
+| `/jobsetup` | First-run config. Search terms, locations, resume, seed run. |
+| `/jobscan` | Reads `jobs.md` + `resume.md`, writes `matches.md`. |
+| `/discover` | A board went quiet? This finds its new URL/selectors and patches `config.toml`. |
+
+## How it knows a posting is new
+
+Not from the site. Workday reports dates as English prose — `"Posted Today"`,
+`"Posted 30+ Days Ago"` — and that last one is a floor, not a value: 31 days and
+400 days look identical.
+
+So the bot doesn't trust it. It remembers every job it has ever seen in
+`seen.json`, and anything absent from that set is new. Poll every 4 hours and
+"new to the set" means "appeared in the last 4 hours" by construction — more
+precise than anything the site will tell you. The site's own prose still gets
+printed next to it, as a weaker second opinion.
+
+First run records everything **without** flagging it, or your first report would
+be several hundred jobs.
+
+## A note on the browser
+
+This drives a real, visible Chromium at every board. That is not the fastest way
+to do this — Workday exposes a clean JSON API underneath, documented in
+[`docs/WORKDAY_REFERENCE.md`](docs/WORKDAY_REFERENCE.md), and hitting it
+directly would be seconds instead of minutes and 30MB instead of 400MB.
+
+The browser was chosen deliberately anyway. It's uniform across all five banks
+including Scotiabank, which isn't Workday at all; you can watch it work and see
+exactly where it breaks; and against Cloudflare a real browser is genuinely
+better than a scripted HTTP client. The cost is that it breaks when a site is
+restyled. That's mitigated by anchoring on Workday's `data-automation-id`
+attributes rather than CSS classes, and by `/discover` when it happens anyway.
+
+If you'd rather have the API version, `docs/WORKDAY_REFERENCE.md` §3 has
+everything needed to write it.
+
+## Docs
+
+- [`docs/ONBOARDING.md`](docs/ONBOARDING.md) — full setup, and how to point this at boards that aren't banks
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — when a board goes quiet
+- [`docs/PLAN.md`](docs/PLAN.md) — the design and why
+- [`docs/WORKDAY_REFERENCE.md`](docs/WORKDAY_REFERENCE.md) — how Workday's API works
+- [`docs/ATS_REFERENCE.md`](docs/ATS_REFERENCE.md) — Greenhouse, Lever, Ashby, for when you outgrow banks
+
+## Not included
+
+Email or desktop notifications, a database, a web UI, salary parsing (Workday
+has no salary data to parse). `jobs.md` in a terminal is the interface.
